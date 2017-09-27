@@ -1,0 +1,61 @@
+---
+title: "Billionaires"
+author: "Yue"
+date: "8/19/2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(compare)
+library(lubridate)
+library(rvest)
+library(stringr)
+```
+
+```{r}
+url_data_billionaires <- 
+  "https://en.wikipedia.org/wiki/The_World%27s_Billionaires"
+```
+
+Let's load the Wikipedia data first!
+
+```{r, Warning=FALSE}
+billionaires_total <-
+  read_html(url_data_billionaires) %>% 
+  html_node(css = "#mw-content-text > div > table:nth-child(89)") %>% 
+  html_table(fill = TRUE) %>% 
+  select(
+    year = Year,
+    num_billionaire = `Number of billionaires`,
+    net_worth = `Group's combined net worth`
+  )
+
+billionaires_total$year <- billionaires_total$year %>% parse_number()
+billionaires_total$num_billionaire <- billionaires_total$num_billionaire %>% parse_number()
+billionaires_total$net_worth <- billionaires_total$net_worth %>% parse_number() * 1e9
+```
+
+Let's now look at a basic graph.
+
+```{r}
+billionaires_total %>% 
+  ggplot(aes(year, num_billionaire)) +
+  geom_line() +
+  geom_vline(xintercept = 2008)
+
+billionaires_total %>% 
+  ggplot(aes(year, net_worth)) +
+  geom_line() +
+  geom_vline(xintercept = 2008)
+```
+
+It's actually interesting how similar the number of people and the net worth combined graphs
+are, but I guess that's to be expected. We see a general steep decline where the 2008 financial
+crash was in both of these scenarios.
+
+

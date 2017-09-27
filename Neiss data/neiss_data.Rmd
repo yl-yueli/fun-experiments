@@ -1,0 +1,241 @@
+---
+title: "Untitled"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(neiss)
+library(tidyverse)
+library(knitr)
+```
+
+```{r}
+glimpse(injuries)
+glimpse(products)
+```
+
+```{r}
+injuries <-
+  injuries %>% 
+  left_join(products, by = c("prod1" = "code"))
+```
+
+```{r}
+injuries %>% 
+  count(body_part, sort = TRUE) %>% 
+  head() %>% 
+  kable()
+
+injuries %>% 
+  count(title, sort = TRUE) %>% 
+  head() %>% 
+  kable()
+
+injuries %>% 
+  count(diag, sort = TRUE) %>% 
+  head() %>% 
+  kable()
+```
+
+```{r}
+injuries <-
+  injuries %>% 
+  mutate(
+    month = lubridate::month(trmt_date, label = TRUE),
+    year = lubridate::year(trmt_date)
+  )
+```
+
+```{r}
+injuries %>%
+  count(month) %>% 
+  ggplot(aes(month, n, group = 1)) +
+  geom_line()
+```
+
+```{r}
+injuries %>% 
+  count(year) %>% 
+  ggplot(aes(year, n)) +
+  geom_line()
+```
+
+
+
+
+```{r}
+injuries %>% 
+  count(year, body_part, sort = TRUE) %>% 
+  ggplot(aes(year, n, color = body_part)) +
+  geom_line()
+```
+
+```{r}
+injuries %>% 
+  count(month, body_part, sort = TRUE) %>% 
+  ggplot(aes(month, n, color = body_part, group = body_part)) +
+  geom_line()
+```
+
+```{r}
+injuries %>% 
+  count(month, body_part) %>% 
+  group_by(month) %>% 
+  mutate(rank = min_rank(-n)) %>% 
+  arrange(rank) %>% 
+  ggplot(aes(month, rank, color = body_part, group = body_part)) +
+  geom_line() +
+  scale_y_reverse()
+```
+
+```{r}
+injuries %>% 
+  count(year, body_part) %>% 
+  group_by(year) %>% 
+  mutate(rank = min_rank(-n)) %>% 
+  arrange(rank) %>% 
+  ggplot(aes(year, rank, color = body_part, group = body_part)) +
+  geom_line() +
+  scale_y_reverse()
+```
+
+```{r}
+gen_color <- function(body_parts, part) {
+  color = setNames(rep("grey50", times = length(body_parts)), body_parts)
+  color[part] = setNames("green", part)
+  color
+}
+```
+
+```{r}
+injury_rank_month <-
+  injuries %>% 
+  count(month, body_part) %>% 
+  group_by(month) %>% 
+  mutate(rank = min_rank(-n)) %>% 
+  arrange(month)
+injury_rank_year <-
+  injuries %>% 
+  count(year, body_part) %>% 
+  group_by(year) %>% 
+  mutate(rank = min_rank(-n)) %>% 
+  arrange(rank)
+line_colors <- gen_color(distinct(injury_rank_month, body_part) %>% .$body_part, "Foot")
+```
+
+```{r}
+injuries %>% 
+  filter(sex != "None listed") %>% 
+  count(sex, month, body_part) %>% 
+  group_by(sex, month) %>% 
+  mutate(rank = min_rank(-n)) %>% 
+  ggplot(aes(month, rank, color = body_part, group = body_part)) +
+  facet_grid(sex ~ .) +
+  geom_line() +
+  scale_y_reverse() +
+  scale_color_manual(values = line_colors)
+```
+
+```{r}
+deadliest_products <-
+  injuries %>% 
+  count(title) %>% 
+  arrange(desc(n)) %>% 
+  slice(1:15) %>% 
+  .$title
+```
+
+```{r}
+head(deadliest_products, n = 15)
+line_colors2 <- gen_color(deadliest_products, "bicycles and accessories (excl mountain")
+injuries %>% 
+  filter(title %in% deadliest_products & sex != "None listed") %>% 
+  count(sex, month, title) %>% 
+  group_by(sex, month) %>% 
+  mutate(rank = min_rank(-n)) %>% 
+  ggplot(aes(month, rank, color = title, group = title)) +
+  geom_line() +
+  facet_grid(sex ~ .) +
+  scale_y_reverse() +
+  scale_color_manual(values = line_colors2)
+```
+
+```{r}
+round_decade <- function(age) {
+  round(age - 5, -1)
+} 
+
+injuries %>% 
+  mutate(decade = round_decade(age)) %>% 
+  count(title, decade) %>% 
+  group_by(decade) %>% 
+  filter(min_rank(desc(n)) <= 5) %>% 
+  arrange(decade, desc(n)) %>% 
+  kable()
+```
+
+```{r}
+injuries %>%
+  filter(sex != "None listed") %>% 
+  count(sex, month) %>% 
+  ggplot(aes(month, n, color = sex, group = sex)) +
+  geom_line()
+```
+
+```{r}
+injuries %>% 
+  filter(sex != "None listed") %>% 
+  count(sex, year) %>% 
+  ggplot(aes(year, n, color = sex)) +
+  geom_line() 
+```
+
+
+```{r}
+injuries %>% 
+  ggplot(aes(age)) +
+  geom_histogram(binwidth = 1)
+```
+
+```{r}
+injuries %>% 
+  filter(title %in% deadliest_products) %>% 
+  mutate(decade = round_decade(age)) %>% 
+  count(title, age) %>% 
+  ggplot(aes(age, n, color = title)) +
+  geom_line()
+```
+```{r}
+injuries %>% 
+  filter(title %in% deadliest_products) %>% 
+  ggplot(aes(age, color = title)) +
+  geom_freqpoly(aes(y = ..density..), binwidth = 5)
+```
+
+```{r}
+injuries %>% 
+  filter(title %in% deadliest_products) %>% 
+  mutate(decade = round_decade(age)) %>% 
+  count(decade, title) %>% 
+  group_by(decade) %>% 
+  mutate(rank = min_rank(-n)) %>% 
+  ggplot(aes(decade, rank, color = title)) +
+  geom_line() +
+  scale_y_reverse()
+```
+
+```{r}
+injuries %>% 
+  mutate(decade = round_decade(age)) %>% 
+  count(decade, body_part) %>% 
+  group_by(decade) %>% 
+  mutate(rank = min_rank(-n)) %>% 
+  ggplot(aes(decade, rank, color = body_part)) +
+  geom_line() +
+  scale_y_reverse()
+```
+
